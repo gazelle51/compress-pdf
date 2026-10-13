@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Collapse dependency locks and generated files in code reviews
+uv.lock generated
