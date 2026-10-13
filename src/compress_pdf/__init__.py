@@ -14,18 +14,24 @@ def compress_image_heavy_pdf(
     output_path: Path,
     target_dpi: int = 150,
     jpeg_quality: int = 60,
+    remove_images: bool = False,
 ) -> None:
     """Rewrite and compress images and streams in a PDF."""
     doc = pymupdf.open(str(input_path))
     try:
-        # PyMuPDF requires dpi_threshold > dpi_target
-        # Any image with DPI > dpi_threshold is downsampled to dpi_target
-        doc.rewrite_images(
-            dpi_threshold=target_dpi + 1,
-            dpi_target=target_dpi,
-            quality=jpeg_quality,
-            lossy=True,
-        )
+        if remove_images:
+            for page in doc:
+                for xref in {image[0] for image in page.get_images(full=True)}:
+                    if xref > 0:
+                        page.delete_image(xref)
+        else:
+            # Rewrite images to reduce pixel dimensions and apply lossy compression
+            doc.rewrite_images(
+                dpi_threshold=target_dpi + 1,
+                dpi_target=target_dpi,
+                quality=jpeg_quality,
+                lossy=True,
+            )
 
         # Save with maximum cleanup and stream deflation
         doc.save(
@@ -66,11 +72,17 @@ def compress_image_heavy_pdf(
     show_default=True,
     help="JPEG compression quality (1-100).",
 )
+@click.option(
+    "--remove-images",
+    is_flag=True,
+    help="Replace page images with transparent placeholders instead of compressing them.",
+)
 def main(
     pdf_path: Path,
     output_path: Optional[Path],
     dpi: int,
     quality: int,
+    remove_images: bool,
 ) -> None:
     """A CLI tool to compress a local PDF file and save as a new file."""
 
@@ -113,6 +125,7 @@ def main(
                 output_path=output_path,
                 target_dpi=dpi,
                 jpeg_quality=quality,
+                remove_images=remove_images,
             )
     except Exception as exc:
         console.print(f"[bold red]Compression failed:[/bold red] {exc}")
