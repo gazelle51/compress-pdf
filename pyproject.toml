@@ -5,7 +5,11 @@ description = "CLI utility to compress PDF files"
 readme = "README.md"
 authors = [{ name = "gazelle51" }]
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "click>=8.5.0",
+    "pymupdf>=1.28.2",
+    "rich>=15.0.0",
+]
 
 [project.scripts]
 compress-pdf = "compress_pdf:main"
@@ -13,3 +17,11 @@ compress-pdf = "compress_pdf:main"
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.pylint.main]
+# Tells Pylint that Click alters function parameters dynamically
+signature-mutators = [
+    "click.decorators.option",
+    "click.decorators.argument",
+    "click.decorators.command",
+]
