@@ -4,6 +4,12 @@ A command-line tool for reducing the size of local PDF files. It is most useful 
 
 The tool rewrites images using lossy compression, downsamples images above the selected resolution, deflates uncompressed PDF streams, and removes duplicate and unreferenced PDF objects. The original file is left unchanged; by default, the output is saved beside it with `_compressed` added to the filename.
 
+## Security: trusted inputs only
+
+Use this CLI only with trusted local PDFs. It passes the input directly to PyMuPDF and does not enforce input-size, memory, or execution-time limits. Very large or specially crafted PDFs can exhaust CPU or memory during parsing or rewriting. This is a resource-exhaustion concern, not a claim of a verified PyMuPDF parser vulnerability.
+
+Processing untrusted PDFs, including user uploads, is not a supported workflow for this CLI on its own. Before using it in an upload-processing service, run compression in an isolated worker or subprocess with an enforced input-file-size cap, memory limit, and execution timeout that terminates the worker. Enforce these controls outside the PDF-processing process and add tests or operational checks that verify oversized inputs are rejected and workers exceeding memory or time limits are terminated. A file-size cap alone does not bound the resources needed to parse or rewrite a PDF.
+
 ## Requirements
 
 - Python 3.14 or later
