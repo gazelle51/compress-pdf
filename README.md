@@ -55,6 +55,14 @@ Lower DPI and quality can reduce image detail. Check the output before deleting 
 > [!IMPORTANT]
 > `--remove-images` is destructive to visible image content. A scanned PDF may consist almost entirely of page images, so this option can leave its pages blank. Do not use it when you need to preserve the scanned pages.
 
+## Tests
+
+Run the test suite with:
+
+```bash
+uv run pytest
+```
+
 ## Compression Results
 
 The amount saved depends on the PDF. Already optimized images, low-resolution scans, text, and vector graphics may not shrink much. Re-encoding can also produce an output that is the same size or larger than the original; compare the reported sizes and inspect the output.
