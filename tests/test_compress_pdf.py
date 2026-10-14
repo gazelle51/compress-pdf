@@ -2,9 +2,28 @@ from pathlib import Path
 from unittest.mock import MagicMock, call
 
 import pytest
+import pymupdf
 from click.testing import CliRunner
 
 from compress_pdf import compress_image_heavy_pdf, main
+
+
+def test_compress_image_heavy_pdf_writes_a_valid_pdf(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.pdf"
+    output_path = tmp_path / "output.pdf"
+    document = pymupdf.open()
+    page = document.new_page(width=72, height=72)
+    image = pymupdf.Pixmap(pymupdf.csRGB, pymupdf.IRect(0, 0, 288, 288), 0)
+    image.clear_with(96)
+    page.insert_image(page.rect, stream=image.tobytes("png"))
+    document.save(input_path)
+    document.close()
+
+    compress_image_heavy_pdf(input_path, output_path, target_dpi=72)
+
+    with pymupdf.open(output_path) as compressed_document:
+        assert len(compressed_document) == 1
+        assert compressed_document[0].get_images(full=True)
 
 
 def test_compress_image_heavy_pdf_rewrites_images_and_closes_document(
@@ -89,6 +108,64 @@ def test_main_uses_default_output_and_forwards_options(
         remove_images=True,
     )
     assert "Compression Complete!" in result.output
+
+
+@pytest.mark.parametrize(
+    ("quality", "is_valid"), [(0, False), (1, True), (100, True), (101, False)]
+)
+def test_main_validates_quality_range(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    quality: int,
+    is_valid: bool,
+) -> None:
+    input_path = tmp_path / "document.pdf"
+    input_path.write_bytes(b"pdf")
+    output_path = tmp_path / "document_compressed.pdf"
+
+    def create_output(**kwargs: object) -> None:
+        output_path.write_bytes(b"compressed")
+
+    compress_pdf = MagicMock(side_effect=create_output)
+    monkeypatch.setattr("compress_pdf.compress_image_heavy_pdf", compress_pdf)
+
+    result = CliRunner().invoke(main, [str(input_path), "--quality", str(quality)])
+
+    if is_valid:
+        assert result.exit_code == 0, result.output
+        compress_pdf.assert_called_once()
+    else:
+        assert result.exit_code != 0
+        compress_pdf.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("input_data", "output_data", "expected"),
+    [
+        (b"x" * 100, b"x" * 40, "60.0%"),
+        (b"x" * 100, b"x" * 100, "0.0%"),
+        (b"x" * 100, b"x" * 120, "-20.0% (file size increased)"),
+    ],
+)
+def test_main_reports_space_saved_or_size_increase(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    input_data: bytes,
+    output_data: bytes,
+    expected: str,
+) -> None:
+    input_path = tmp_path / "document.pdf"
+    output_path = tmp_path / "compressed.pdf"
+    input_path.write_bytes(input_data)
+    monkeypatch.setattr(
+        "compress_pdf.compress_image_heavy_pdf",
+        lambda **kwargs: output_path.write_bytes(output_data),
+    )
+
+    result = CliRunner().invoke(main, [str(input_path), "--output", str(output_path)])
+
+    assert result.exit_code == 0, result.output
+    assert expected in result.output
 
 
 @pytest.mark.parametrize("input_name", ["document.txt", "document.Pdfx"])
