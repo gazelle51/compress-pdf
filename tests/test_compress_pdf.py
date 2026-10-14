@@ -1,3 +1,5 @@
+import runpy
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
@@ -6,6 +8,16 @@ import pymupdf
 from click.testing import CliRunner
 
 from compress_pdf import compress_image_heavy_pdf, main
+
+
+def test_module_entry_point_displays_help(monkeypatch: pytest.MonkeyPatch) -> None:
+    module_path = Path(__file__).parents[1] / "src" / "compress_pdf" / "__init__.py"
+    monkeypatch.setattr(sys, "argv", [str(module_path), "--help"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        runpy.run_path(str(module_path), run_name="__main__")
+
+    assert exc_info.value.code == 0
 
 
 def test_compress_image_heavy_pdf_writes_a_valid_pdf(tmp_path: Path) -> None:
